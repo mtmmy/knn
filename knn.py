@@ -20,7 +20,7 @@ class BallTreeNode:
 trainingData = load_dataset.read("training")
 testData = load_dataset.read("testing")
 
-size = 10
+size = 1
 
 trainLbls = trainingData[0][:size * 6]
 trainImgs = trainingData[1][:size * 6]
@@ -37,13 +37,13 @@ for i in range(len(trainLbls)):
 for i in range(len(testLbls)):
     testData.append(ImageData(testImgs[i], testLbls[i]))
 
-def getCentroid(images):
+def getCentroid(data):
     sums = [[0] * 28 for _ in range(28)]
-    n = len(images)
-    for image in images:
+    n = len(data)
+    for d in data:
         for i in range(28):
             for j in range(28):
-                sums[i][j] += image[i][j].image
+                sums[i][j] += d.image[i][j]
     
     for i in range(28):
         for j in range(28):
@@ -82,15 +82,21 @@ def constructBallTree(training):
     if len(training) == 1:
         return BallTreeNode(training[0])
     else:
-        n = len(training)
-        centroid = random.choice(training)
+        centroid = ImageData(getCentroid(training), -1)
+        ballNode = BallTreeNode(centroid)
+        
         f1 = getFurthest(centroid.image, training)
         f2 = getFurthest(f1.image, training)
+        balls = seperateTwoBalls(training, f1, f2)
         
+        ballNode.left = constructBallTree(balls[0])
+        ballNode.right = constructBallTree(balls[1])
 
-constructBallTree(trainingData)
+        return ballNode
 
-# print("--- %s seconds ---" % (time.time() - startTime))
+root = constructBallTree(trainingData)
+
+print("--- %s seconds ---" % (time.time() - startTime))
 
 
 # def getPrediction(knn):
