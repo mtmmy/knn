@@ -12,15 +12,17 @@ class ImageData:
         self.label = label
 
 class BallTreeNode:
-    def __init__(self, image):
+    def __init__(self, image, radius, leafs):
         self.imageData = image
+        self.radius = radius
         self.left = None
         self.right = None
+        self.leafs = leafs
 
 trainingData = load_dataset.read("training")
 testData = load_dataset.read("testing")
 
-size = 1
+size = 100
 
 trainLbls = trainingData[0][:size * 6]
 trainImgs = trainingData[1][:size * 6]
@@ -37,9 +39,20 @@ for i in range(len(trainLbls)):
 for i in range(len(testLbls)):
     testData.append(ImageData(testImgs[i], testLbls[i]))
 
+distantTable = [[0] * 256 for _ in range(256)]
+for i in range(len(distantTable)):
+    for j in range(len(distantTable[0])):
+        distantTable[i][j] = (i - j) ** 2
+
+def getDistance(image1, image2):
+    sqrtSum = 0
+    for i in range(28):
+        for j in range(28):
+            sqrtSum += (int(image1[i][j]) - image2[i][j]) ** 2
+    return sqrtSum
+
 def getCentroid(data):
     sums = [[0] * 28 for _ in range(28)]
-    n = len(data)
     for d in data:
         for i in range(28):
             for j in range(28):
@@ -53,11 +66,8 @@ def getCentroid(data):
 def getFurthest(target, data):
     furthest = (0, -1)
     for d in range(len(data)):
-        distance = 0
         image = data[d].image
-        for i in range(28):
-            for j in range(28):
-                distance += (image[i][j] - target[i][j]) ** 2
+        distance = getDistance(image, target)
         if distance > furthest[0]:
             furthest = (distance, d)
     return data[furthest[1]]
@@ -65,13 +75,9 @@ def getFurthest(target, data):
 def seperateTwoBalls(data, f1, f2):
     balls = [[], []]
     for d in range(len(data)):
-        distance1 = 0
-        distance2 = 0
         image = data[d].image
-        for i in range(28):
-            for j in range(28):
-                distance1 += (image[i][j] - f1.image[i][j]) ** 2
-                distance2 += (image[i][j] - f2.image[i][j]) ** 2
+        distance1 = getDistance(image, f1.image)
+        distance2 = getDistance(image, f2.image)
         if distance1 < distance2:
             balls[0].append(data[d])
         else:
@@ -80,41 +86,71 @@ def seperateTwoBalls(data, f1, f2):
 
 def constructBallTree(training):
     if len(training) == 1:
-        return BallTreeNode(training[0])
+        return BallTreeNode(training[0], 0, 0)
     else:
+        n = len(training)
         centroid = ImageData(getCentroid(training), -1)
-        ballNode = BallTreeNode(centroid)
         
         f1 = getFurthest(centroid.image, training)
         f2 = getFurthest(f1.image, training)
         balls = seperateTwoBalls(training, f1, f2)
+
+        radius = getDistance(centroid.image, f1.image)
+        ballNode = BallTreeNode(centroid, radius, n)
         
         ballNode.left = constructBallTree(balls[0])
         ballNode.right = constructBallTree(balls[1])
 
         return ballNode
 
-root = constructBallTree(trainingData)
+def searchBallTree(target, k, heap, ballTree, distance=-1):
+    d = getDistance(target.image, ballTree.imageData.image) if distance == -1 else distance
+    if heap and d - ballTree.radius >= -heap[0][0]:
+        return
+    elif ballTree.leafs == 0:
+        lbl = ballTree.imageData.label
+        heapq.heappush(heap, (-d, lbl))
+        if len(heap) > k:
+            heapq.heappop(heap)
+    else:
+        # searchBallTree(target, k, heap, ballTree.left)
+        # searchBallTree(target, k, heap, ballTree.right)
+        d1 = getDistance(target.image, ballTree.left.imageData.image)
+        d2 = getDistance(target.image, ballTree.right.imageData.image)
+        if d1 < d2:
+            searchBallTree(target, k, heap, ballTree.left, d1)
+            searchBallTree(target, k, heap, ballTree.right, d2)
+        else:
+            searchBallTree(target, k, heap, ballTree.right, d2)
+            searchBallTree(target, k, heap, ballTree.left, d1)
+ 
+def getPrediction(knn):
+    guess = [n[1] for n in knn]
+    return Counter(guess).most_common(1)[0][0]
 
+root = constructBallTree(trainingData)
 print("--- %s seconds ---" % (time.time() - startTime))
 
+def test():
+    correctness = {key: 0 for key in ks}
+    for i in range(size):
+        testLbl = testLbls[i]
+        knn = []
+        searchBallTree(testData[i], 100, knn, root)
+        for k in ks:
+            copyKnn = [(-d, l) for d, l in knn]
+            heapq.heapify(copyKnn)
+            times = k
+            neighbors = []
+            while times > 0 and copyKnn:
+                neighbors.append(heapq.heappop(copyKnn))
+                times -= 1
+            if getPrediction(neighbors) == testLbl:
+                correctness[k] += 1
 
-# def getPrediction(knn):
-#     guess = [n[1] for n in knn]
-#     return Counter(guess).most_common(1)[0][0]
+    for key, val in correctness.items():
+        print(str(key) + ": " + str(val / size))
 
-
-# print("--- %s seconds ---" % (time.time() - startTime))
-
-# for k in ks:
-#     corrects = 0
-#     for i in range(size):
-#         testLbl = testLbls[i]
-#         heap = []
-#         knn = heapq.nsmallest(k, heap)
-#         if getPrediction(knn) == testLbl:
-#             corrects += 1
-#     print(corrects / size)
-    
-# print("--- %s seconds ---" % (time.time() - startTime))
+test()
+print("Size: " + str(size) + "--- %s seconds ---" % (time.time() - startTime))
 

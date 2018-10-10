@@ -7,3 +7,4 @@ train-labels.idx1-ubyte
 .vscode/.ropeproject/config.py
 .vscode/.ropeproject/objectdb
 __pycache__/load_dataset.cpython-36.pyc
+test.py
