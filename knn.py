@@ -3,11 +3,24 @@ import numpy as np
 import heapq
 from collections import Counter
 import time
+import random
+
+startTime = time.time()
+class ImageData:
+    def __init__(self, image, label):
+        self.image = image
+        self.label = label
+
+class BallTreeNode:
+    def __init__(self, image):
+        self.imageData = image
+        self.left = None
+        self.right = None
 
 trainingData = load_dataset.read("training")
 testData = load_dataset.read("testing")
 
-size = 100
+size = 10
 
 trainLbls = trainingData[0][:size * 6]
 trainImgs = trainingData[1][:size * 6]
@@ -15,53 +28,87 @@ testLbls = testData[0][:size]
 testImgs = testData[1][:size]
 ks = [1, 3, 5, 10, 30, 50, 70, 80, 90, 100]
 
-distanceForTests = []
-distantTable = [[0] * 256 for _ in range(256)]
+trainingData = []
+testData = []
 
-startTime = time.time()
+for i in range(len(trainLbls)):
+    trainingData.append(ImageData(trainImgs[i], trainLbls[i]))
 
-for i in range(len(distantTable)):
-    for j in range(len(distantTable[0])):
-        distantTable[i][j] = (i - j) ** 2
+for i in range(len(testLbls)):
+    testData.append(ImageData(testImgs[i], testLbls[i]))
 
-
-shrink = 5
-def euclideanDistance(image1, image2):    
-    image1 = image1[shrink:-shrink, shrink:-shrink]
-    image2 = image2[shrink:-shrink, shrink:-shrink]
-    m, n = len(image1), len(image1[0])
-    sqrtSum = 0
-
-    for i in range(m):
-        for j in range(n):
-            sqrtSum += distantTable[image1[i][j]][image2[i][j]]
+def getCentroid(images):
+    sums = [[0] * 28 for _ in range(28)]
+    n = len(images)
+    for image in images:
+        for i in range(28):
+            for j in range(28):
+                sums[i][j] += image[i][j].image
     
-    return sqrtSum      # no need to square root if only doing comparison
+    for i in range(28):
+        for j in range(28):
+            sums[i][j] /= 784
+    return sums
 
-def getPrediction(knn):
-    guess = [n[1] for n in knn]
-    return Counter(guess).most_common(1)[0][0]
+def getFurthest(target, data):
+    furthest = (0, -1)
+    for d in range(len(data)):
+        distance = 0
+        image = data[d].image
+        for i in range(28):
+            for j in range(28):
+                distance += (image[i][j] - target[i][j]) ** 2
+        if distance > furthest[0]:
+            furthest = (distance, d)
+    return data[furthest[1]]
 
-for i in range(size):
-    distance = []
-    for j in range(size * 6):
-        tlbl = trainLbls[j]
-        d = euclideanDistance(testImgs[i], trainImgs[j])
-        heapq.heappush(distance, (d, tlbl))
-    distanceForTests.append(distance)
+def seperateTwoBalls(data, f1, f2):
+    balls = [[], []]
+    for d in range(len(data)):
+        distance1 = 0
+        distance2 = 0
+        image = data[d].image
+        for i in range(28):
+            for j in range(28):
+                distance1 += (image[i][j] - f1.image[i][j]) ** 2
+                distance2 += (image[i][j] - f2.image[i][j]) ** 2
+        if distance1 < distance2:
+            balls[0].append(data[d])
+        else:
+            balls[1].append(data[d])
+    return balls
 
-print("--- %s seconds ---" % (time.time() - startTime))
+def constructBallTree(training):
+    if len(training) == 1:
+        return BallTreeNode(training[0])
+    else:
+        n = len(training)
+        centroid = random.choice(training)
+        f1 = getFurthest(centroid.image, training)
+        f2 = getFurthest(f1.image, training)
+        
 
-for k in ks:
-    corrects = 0
-    for i in range(size):
-        testLbl = testLbls[i]
+constructBallTree(trainingData)
 
-        heap = distanceForTests[i]
-        knn = heapq.nsmallest(k, heap)
-        if getPrediction(knn) == testLbl:
-            corrects += 1
-    print(corrects / size)
+# print("--- %s seconds ---" % (time.time() - startTime))
+
+
+# def getPrediction(knn):
+#     guess = [n[1] for n in knn]
+#     return Counter(guess).most_common(1)[0][0]
+
+
+# print("--- %s seconds ---" % (time.time() - startTime))
+
+# for k in ks:
+#     corrects = 0
+#     for i in range(size):
+#         testLbl = testLbls[i]
+#         heap = []
+#         knn = heapq.nsmallest(k, heap)
+#         if getPrediction(knn) == testLbl:
+#             corrects += 1
+#     print(corrects / size)
     
-print("--- %s seconds ---" % (time.time() - startTime))
+# print("--- %s seconds ---" % (time.time() - startTime))
 
