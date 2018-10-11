@@ -22,7 +22,7 @@ class BallTreeNode:
 trainingData = load_dataset.read("training")
 testData = load_dataset.read("testing")
 
-size = 400
+size = 500
 
 trainLbls = trainingData[0][:size * 6]
 trainImgs = trainingData[1][:size * 6]
@@ -90,7 +90,6 @@ def constructBallTree(training):
         f2 = getFurthest(f1.image, training)
         centroid = ImageData(getCentroid([f1, f2]), -1)
         balls = seperateTwoBalls(training, f1, f2)
-        # print("ball 1: {}, ball 2: {}".format(len(balls[0]), len(balls[1])))
 
         radius = getDistance(f1.image, centroid.image)
         ballNode = BallTreeNode(centroid, radius, n)
@@ -102,7 +101,7 @@ def constructBallTree(training):
 
 def searchBallTree(target, k, heap, ballTree, distance=-1):
     d = getDistance(target.image, ballTree.imageData.image) if distance == -1 else distance
-    if len(heap) > k:
+    if len(heap) >= k:
         curMax = heapq.heappop(heap)
         heapq.heappush(heap, curMax)
         if d - ballTree.radius >= -curMax[0]:
@@ -128,7 +127,6 @@ def getPrediction(knn):
 
 root = constructBallTree(trainingData)
 constructTime = time.time()
-print("--- Construct Ball Tree with Size {} spent {} seconds ---".format(size * 6, (constructTime - startTime)))
 
 def test():
     correctness = {key: 0 for key in ks}
@@ -153,5 +151,6 @@ def test():
         print(str(key) + ": " + str(val / size))
 
 test()
+print("--- Construct Ball Tree with Size {} spent {} seconds ---".format(size * 6, (constructTime - startTime)))
 print("--- Search in Ball Tree with Size {} spent {} seconds ---".format(size, (time.time() - constructTime)))
 print("--- Total time is {} seconds ---".format((time.time() - startTime)))
