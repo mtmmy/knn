@@ -22,7 +22,7 @@ class BallTreeNode:
 trainingData = load_dataset.read("training")
 testData = load_dataset.read("testing")
 
-size = 100
+size = 400
 
 trainLbls = trainingData[0][:size * 6]
 trainImgs = trainingData[1][:size * 6]
@@ -84,13 +84,15 @@ def constructBallTree(training):
         return BallTreeNode(training[0], 0, 0)
     else:
         n = len(training)
-        centroid = ImageData(getCentroid(training), -1)
+        startPoint = random.choice(training)
         
-        f1 = getFurthest(centroid.image, training)
+        f1 = getFurthest(startPoint.image, training)
         f2 = getFurthest(f1.image, training)
+        centroid = ImageData(getCentroid([f1, f2]), -1)
         balls = seperateTwoBalls(training, f1, f2)
+        # print("ball 1: {}, ball 2: {}".format(len(balls[0]), len(balls[1])))
 
-        radius = getDistance(centroid.image, f1.image)
+        radius = getDistance(f1.image, centroid.image)
         ballNode = BallTreeNode(centroid, radius, n)
         
         ballNode.left = constructBallTree(balls[0])
@@ -100,9 +102,12 @@ def constructBallTree(training):
 
 def searchBallTree(target, k, heap, ballTree, distance=-1):
     d = getDistance(target.image, ballTree.imageData.image) if distance == -1 else distance
-    if heap and d - ballTree.radius >= -heap[0][0]:
-        return
-    elif ballTree.leafs == 0:
+    if len(heap) > k:
+        curMax = heapq.heappop(heap)
+        heapq.heappush(heap, curMax)
+        if d - ballTree.radius >= -curMax[0]:
+            return    
+    if ballTree.leafs == 0:
         lbl = ballTree.imageData.label
         heapq.heappush(heap, (-d, lbl))
         if len(heap) > k:
@@ -128,9 +133,11 @@ print("--- Construct Ball Tree with Size {} spent {} seconds ---".format(size * 
 def test():
     correctness = {key: 0 for key in ks}
     for i in range(size):
+        print("--- Testing the {}th data ---".format(i))
         testLbl = testLbls[i]
         knn = []
-        searchBallTree(testData[i], 100, knn, root)
+        k = 100
+        searchBallTree(testData[i], k, knn, root)
         for k in ks:
             copyKnn = [(-d, l) for d, l in knn]
             heapq.heapify(copyKnn)
