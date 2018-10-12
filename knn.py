@@ -22,7 +22,7 @@ class BallTreeNode:
 trainingData = load_dataset.read("training")
 testData = load_dataset.read("testing")
 
-size = 500
+size = 100
 
 trainLbls = trainingData[0][:size * 6]
 trainImgs = trainingData[1][:size * 6]
@@ -34,17 +34,26 @@ trainingData = []
 testData = []
 
 for i in range(len(trainLbls)):
-    trainingData.append(ImageData(trainImgs[i], trainLbls[i]))
+    image = [[0] * 28 for _ in range(28)]
+    for r in range(28):
+        for c in range(28):
+            image[r][c] = int(trainImgs[i][r][c])
+    trainingData.append(ImageData(image, trainLbls[i]))
 
 for i in range(len(testLbls)):
-    testData.append(ImageData(testImgs[i], testLbls[i]))
+    image = [[0] * 28 for _ in range(28)]
+    for r in range(28):
+        for c in range(28):
+            image[r][c] = int(testImgs[i][r][c])
+    testData.append(ImageData(image, testLbls[i]))
 
 def getDistance(image1, image2):
-    sqrtSum = 0
+    sqrSum = 0
     for i in range(28):
         for j in range(28):
-            sqrtSum += (int(image1[i][j]) - image2[i][j]) ** 2
-    return sqrtSum
+            diff = image1[i][j] - image2[i][j]
+            sqrSum += diff * diff
+    return sqrSum
 
 def getCentroid(allPoints):
     sums = [[0] * 28 for _ in range(28)]
@@ -125,13 +134,14 @@ def getPrediction(knn):
     guess = [n[1] for n in knn]
     return Counter(guess).most_common(1)[0][0]
 
+preprocessingTime = time.time()
+print("--- Preprocessing spent {} seconds ---".format(preprocessingTime - startTime))
 root = constructBallTree(trainingData)
 constructTime = time.time()
 
 def test():
     correctness = {key: 0 for key in ks}
     for i in range(size):
-        print("--- Testing the {}th data ---".format(i))
         testLbl = testLbls[i]
         knn = []
         k = 100
@@ -150,7 +160,8 @@ def test():
     for key, val in correctness.items():
         print(str(key) + ": " + str(val / size))
 
+print("--- Construct Ball Tree with Size {} spent {} seconds ---".format(size * 6, (constructTime - preprocessingTime)))
 test()
-print("--- Construct Ball Tree with Size {} spent {} seconds ---".format(size * 6, (constructTime - startTime)))
-print("--- Search in Ball Tree with Size {} spent {} seconds ---".format(size, (time.time() - constructTime)))
+firstTestTime = time.time()
+print("--- Search in Ball Tree with Size {} spent {} seconds ---".format(size, (firstTestTime - constructTime)))
 print("--- Total time is {} seconds ---".format((time.time() - startTime)))
