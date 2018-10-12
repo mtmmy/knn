@@ -34,38 +34,35 @@ trainingData = []
 testData = []
 
 for i in range(len(trainLbls)):
-    image = [[0] * 28 for _ in range(28)]
+    image = [0] * 784
     for r in range(28):
         for c in range(28):
-            image[r][c] = int(trainImgs[i][r][c])
-    trainingData.append(ImageData(image, trainLbls[i]))
+            image[28 * r + c] = int(trainImgs[i][r][c])
+    trainingData.append(ImageData(np.array(image), trainLbls[i]))
 
 for i in range(len(testLbls)):
-    image = [[0] * 28 for _ in range(28)]
+    image = [0] * 784
     for r in range(28):
         for c in range(28):
-            image[r][c] = int(testImgs[i][r][c])
-    testData.append(ImageData(image, testLbls[i]))
+            image[28 * r + c] = int(testImgs[i][r][c])
+    testData.append(ImageData(np.array(image), testLbls[i]))
 
 def getDistance(image1, image2):
-    sqrSum = 0
-    for i in range(28):
-        for j in range(28):
-            diff = image1[i][j] - image2[i][j]
-            sqrSum += diff * diff
-    return sqrSum
+    return np.linalg.norm(image1-image2)
+    # sqrSum = 0
+    # for i in range(28):
+    #     for j in range(28):
+    #         diff = image1[i][j] - image2[i][j]
+    #         sqrSum += diff * diff
+    # return sqrSum
 
 def getCentroid(allPoints):
-    sums = [[0] * 28 for _ in range(28)]
+    sums = [0] * 784
     for d in allPoints:
-        for i in range(28):
-            for j in range(28):
-                sums[i][j] += d.image[i][j]
+        for i in range(784):
+                sums[i] += d.image[i]
     
-    for i in range(28):
-        for j in range(28):
-            sums[i][j] /= len(allPoints)
-    return sums
+    return [sum / len(allPoints) for sum in sums]
 
 def getFurthest(target, allPoints):
     furthest = (0, -1)
