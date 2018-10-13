@@ -4,10 +4,13 @@ import heapq
 from collections import Counter
 import time
 
-trainingData = load_dataset.read("training")
-testData = load_dataset.read("testing")
+startTime = time.time()
 
-size = 500
+path = "../assignment2_data/"
+trainingData = load_dataset.read("training", path)
+testData = load_dataset.read("testing", path)
+
+size = 10000
 
 trainLbls = trainingData[0][:size * 6]
 trainImgs = trainingData[1][:size * 6]
@@ -33,7 +36,9 @@ for i in range(len(testLbls)):
             image[r][c] = int(testImgs[i][r][c])
     testData.append(np.array(image))
 
-startTime = time.time()
+preprocessingTime = time.time()
+
+print("--- Preprocessing spent {} seconds ---".format(preprocessingTime - startTime))
 
 def getDistance(image1, image2):
     return np.linalg.norm(image1 - image2)
@@ -43,14 +48,16 @@ def getPrediction(knn):
     return Counter(guess).most_common(1)[0][0]
 
 for i in range(size):
-    distance = []
+    heap = []
     for j in range(size * 6):
         tlbl = trainLbls[j]
         d = getDistance(testData[i], trainingData[j])
-        heapq.heappush(distance, (d, tlbl))
+        heapq.heappush(heap, (-d, tlbl))
+    distance = heapq.nlargest(100, heap)
     distanceForTests.append(distance)
 
-print("--- %s seconds ---" % (time.time() - startTime))
+nearestTime = time.time()
+print("--- Get 100 nearest neighbors with {} of training data spent {} seconds ---".format(size * 6, nearestTime - preprocessingTime))
 
 for k in ks:
     corrects = 0
@@ -58,9 +65,10 @@ for k in ks:
         testLbl = testLbls[i]
 
         heap = distanceForTests[i]
-        knn = heapq.nsmallest(k, heap)
+        knn = heapq.nlargest(k, heap)
         if getPrediction(knn) == testLbl:
             corrects += 1
     print(corrects / size)
     
-print("--- %s seconds ---" % (time.time() - startTime))
+print("--- Get accuracy of {} testing data spent {} seconds ---".format(size * 6, time.time() - nearestTime))
+print("--- Totally, {} testing data and {} training data spent {} seconds ---".format(size, size * 6, time.time() - startTime))
