@@ -19,22 +19,8 @@ testImgs = testData[1][:size]
 ks = [1, 3, 5, 10, 30, 50, 70, 80, 90, 100]
 
 distanceForTests = []
-trainingData = []
-testData = []
-
-for i in range(len(trainLbls)):
-    image = [[0] * 28 for _ in range(28)]
-    for r in range(28):
-        for c in range(28):
-            image[r][c] = int(trainImgs[i][r][c])
-    trainingData.append(np.array(image))
-
-for i in range(len(testLbls)):
-    image = [[0] * 28 for _ in range(28)]
-    for r in range(28):
-        for c in range(28):
-            image[r][c] = int(testImgs[i][r][c])
-    testData.append(np.array(image))
+trainingData = [image.astype(int) for image in trainImgs]
+testData = [image.astype(int) for image in testImgs]
 
 preprocessingTime = time.time()
 
